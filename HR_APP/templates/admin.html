@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Admin Dashboard</h2>
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h4>Add Category with Files</h4>
+                <form id="categoryForm">
+                    <div class="mb-3">
+                        <label for="categoryName" class="form-label">Category Name</label>
+                        <input type="text" class="form-control" id="categoryName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="categoryFiles" class="form-label">Upload Files</label>
+                        <input type="file" class="form-control" id="categoryFiles" name="files" multiple>
+                    </div>
+                    <div class="mb-3">
+                        <label for="externalLink" class="form-label">External Link</label>
+                        <input type="text" class="form-control" id="externalLink" name="external_link">
+                    </div>
+                    <div class="mb-3">
+                        <label for="linkName" class="form-label">Link Name</label>
+                        <input type="text" class="form-control" id="linkName" name="link_name">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Category</button>
+                </form>
+            </div>
+            <div class="col-md-6">
+                <h4>Grant Access to User</h4>
+                <form id="accessForm">
+                    <div class="mb-3">
+                        <label for="userSelect" class="form-label">Select User</label>
+                        <select class="form-control" id="userSelect" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="categorySelect" class="form-label">Select Category</label>
+                        <select class="form-control" id="categorySelect" required></select>
+                    </div>
+                    <button type="submit" class="btn btn-success">Grant Access</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchUsersAndCategories() {
+            try {
+                const [usersResponse, categoriesResponse] = await Promise.all([
+                    fetch("http://localhost:8000/admin/employees/"),
+                    fetch("http://localhost:8000/categories")
+                ]);
+
+                if (!usersResponse.ok) {
+                    throw new Error(`Failed to fetch users: ${usersResponse.statusText}`);
+                }
+                if (!categoriesResponse.ok) {
+                    throw new Error(`Failed to fetch categories: ${categoriesResponse.statusText}`);
+                }
+
+                let users = await usersResponse.json();
+                let categories = await categoriesResponse.json();
+
+                // Check if users is an object with a users key
+                if (users.users) {
+                    users = users.users;
+                }
+
+                // Check if categories is an object with a categories key
+                if (categories.categories) {
+                    categories = categories.categories;
+                }
+
+                console.log("Users:", users);
+                console.log("Categories:", categories);
+
+                const userSelect = document.getElementById("userSelect");
+                userSelect.innerHTML = '<option value="">Select User</option>';
+                users.forEach(user => {
+                    const option = document.createElement("option");
+                    option.value = user.id;
+                    option.textContent = user.name;
+                    userSelect.appendChild(option);
+                });
+
+                const categorySelect = document.getElementById("categorySelect");
+                categorySelect.innerHTML = '<option value="">Select Category</option>';
+                categories.forEach(category => {
+                    const option = document.createElement("option");
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    categorySelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error("Error fetching users or categories:", error);
+            }
+        }
+
+        // Handle form submission for adding a category
+        document.getElementById("categoryForm").addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const formData = new FormData();
+            formData.append("name", document.getElementById("categoryName").value);
+            formData.append("external_link", document.getElementById("externalLink").value);
+            formData.append("link_name", document.getElementById("linkName").value);
+
+            const files = document.getElementById("categoryFiles").files;
+            for (let i = 0; i < files.length; i++) {
+                formData.append("files", files[i]);
+            }
+
+            try {
+                const response = await fetch("http://localhost:8000/admin/add_category/", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to add category: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                console.log("Category added successfully:", result);
+                alert("Category added successfully!");
+            } catch (error) {
+                console.error("Error adding category:", error);
+                alert("Failed to add category. Please check the console for details.");
+            }
+        });
+
+        // Handle form submission for granting access
+        document.getElementById("accessForm").addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const userId = document.getElementById("userSelect").value;
+            const categoryId = document.getElementById("categorySelect").value;
+
+            if (!userId || !categoryId) {
+                alert("Please select both a user and a category.");
+                return;
+            }
+
+            try {
+                const response = await fetch("http://localhost:8000/admin/grant_access/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    body: new URLSearchParams({
+                        first_name: "", // You need to fetch the first name and last name based on the user ID
+                        last_name: "", // You need to fetch the first name and last name based on the user ID
+                        category_name: document.getElementById("categorySelect").selectedOptions[0].text,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to grant access: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                console.log("Access granted successfully:", result);
+                alert("Access granted successfully!");
+            } catch (error) {
+                console.error("Error granting access:", error);
+                alert("Failed to grant access. Please check the console for details.");
+            }
+        });
+
+        // Fetch users and categories on page load
+        fetchUsersAndCategories();
+    </script>
+</body>
+</html>
